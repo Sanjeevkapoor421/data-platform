@@ -1,0 +1,80 @@
+# Airflow Helm chart overrides
+# Chart: apache-airflow/airflow  version: 1.14.0
+# Apply with:
+#   helm upgrade --install airflow apache-airflow/airflow \
+#     -n airflow --create-namespace \
+#     -f deploy/airflow/values-override.yaml
+
+image:
+  repository: apache/airflow
+  tag: "2.9.1"
+
+executor: LocalExecutor
+
+# Disable bundled Postgres — use external DB
+postgresql:
+  enabled: false
+
+data:
+  metadataConnection:
+    user: sanjeev
+    pass: sanjeev
+    host: <YOUR_POSTGRES_HOST>
+    port: 5432
+    db: airflow
+    protocol: postgresql
+
+# Disable bundled Redis (not needed for LocalExecutor)
+redis:
+  enabled: false
+
+webserver:
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8080
+
+scheduler:
+  replicas: 1
+
+triggerer:
+  enabled: true
+  replicas: 1
+
+# Worker not needed for LocalExecutor
+workers:
+  replicas: 0
+
+flower:
+  enabled: false
+
+# DAGs via git-sync (swap with your repo)
+dags:
+  gitSync:
+    enabled: false
+  # To enable git-sync, comment the above and uncomment below:
+  # gitSync:
+  #   enabled: true
+  #   repo: https://github.com/<your-org>/<your-repo>.git
+  #   branch: main
+  #   subPath: data-ingestion/dags
+
+# Airflow config overrides
+config:
+  core:
+    load_examples: "False"
+    dags_are_paused_at_creation: "True"
+  api:
+    auth_backends: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+# Admin user created on install
+webserverSecretKey: changeme-use-a-real-secret-in-prod
+
+env:
+  - name: AIRFLOW__CORE__FERNET_KEY
+    value: ""
+
+# Mount the connections secret into every Airflow pod as env vars
+extraEnvFrom:
+  - secretRef:
+      name: airflow-connections
